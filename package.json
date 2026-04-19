@@ -1,0 +1,22 @@
+{
+  "name": "healthcare_assistant",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Wahid Ejaz",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@mariozechner/pi-ai": "^0.67.68"
+  }
+}
