@@ -2,6 +2,7 @@ import { stream, Context, complete } from "@mariozechner/pi-ai"
 import _model from './model.js';
 export default async function(context: Context, model: typeof _model) {
 
+  console.log("conversing...");
   const s = stream(model, context, {
     temperature: 1,
     maxTokens: 4096,
@@ -86,9 +87,5 @@ export default async function(context: Context, model: typeof _model) {
     console.log('After tool execution:', continuation.content);
   }
 
-  console.log(`Total tokens: ${finalMessage.usage.input} in, ${finalMessage.usage.output} out`);
-  console.log(`Cost: $${finalMessage.usage.cost.total.toFixed(4)}`);
-
-  console.log(finalMessage);
-
+  return [finalMessage, context];
 }
