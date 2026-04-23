@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.67.68",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "mongoose": "^9.5.0"
   }
 }

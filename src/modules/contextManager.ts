@@ -1,45 +1,66 @@
-// this file will be used to serve contexts for a given patient from database
-// Should have a function that takes a patient identifier (phone number or id) and return their context in full
-import { Context } from "@mariozechner/pi-ai";
-interface contextManagerClass {
-  getContext: (identifier: string) => Context | undefined;
-  createNewContext: (identifier: string) => Context;
-}
-let cm: contextManagerClass | null = null;
+// Context manager that stores chat context in MongoDB
+import { ContextModel, IContext } from '../database/index.js';
+import { Context } from '@mariozechner/pi-ai';
 
-class contextManager implements contextManagerClass {
-  contexts: Map<string, Context>;
-
-  constructor() {
-    this.contexts = new Map();
-  }
-
-  // identifier can be changed to match anything we might need in the future...phone numbers etc.
-  getContext(identifier: string) {
-    return this.contexts.get(identifier);
-  }
-
-  createNewContext(identifier: string) {
-    let context: Context = {
-      messages: [
-        { role: 'user', content: 'Hello, how are you?', timestamp: Date.now() }
-      ],
-    }
-    this.contexts.set(identifier, context);
-    if (!this.contexts.get(identifier))
-      throw new Error("Context creation failed");
-    return context;
-  }
+interface ContextManager {
+  getContext: (userId: string) => Promise<Context | undefined>;
+  createNewContext: (userId: string) => Promise<Context>;
+  saveContext: (userId: string, context: Context) => Promise<void>;
+  deleteContext: (userId: string) => Promise<void>;
 }
 
-function get_cm() {
-  if (!cm) {
-    cm = new contextManager();
-    return cm;
-  }
-  return cm
+export async function getContext(userId: string): Promise<Context | undefined> {
+  const doc = await ContextModel.findOne({ userId });
+  if (!doc) return undefined;
+  return { messages: doc.messages };
 }
 
+export async function createNewContext(userId: string): Promise<Context> {
+  const context: Context = {
+    messages: [
+      { role: 'user', content: 'Hello, how are you?', timestamp: Date.now() },
+    ],
+  };
 
+  await ContextModel.create({
+    userId,
+    messages: context.messages,
+  });
 
-export default get_cm();
+  return context;
+}
+
+export async function saveContext(userId: string, context: Context): Promise<void> {
+  try {
+    await ContextModel.findOneAndUpdate(
+      { userId },
+      {
+        userId,
+        messages: context.messages,
+      },
+      { upsert: true }
+    );
+  } catch (e) {
+    console.log(e)
+    throw new Error("Error saving context");
+  }
+}
+
+export async function deleteContext(userId: string): Promise<void> {
+  try {
+    await ContextModel.deleteOne({ userId });
+  } catch (e) {
+    console.log(e)
+    throw new Error("Error deleting context");
+  }
+}
+
+// Export as default context manager
+const contextManager: ContextManager = {
+  getContext,
+  createNewContext,
+  saveContext,
+  deleteContext,
+};
+
+export default contextManager;
