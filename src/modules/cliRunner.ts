@@ -1,0 +1,31 @@
+import * as readline from "readline";
+import { handleUserMessage } from '../conversation.js';
+
+export async function startCLI(): Promise<void> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  function askQuestion(query: string): Promise<string> {
+    return new Promise((resolve) => rl.question(query, resolve));
+  }
+
+  console.log('🖥️  CLI Mode - Type your messages (or "quit" to exit)\n');
+
+  const userId = 'test-user-123';
+
+  while (true) {
+    const input = await askQuestion("\nPrompt: ");
+    
+    if (input.trim().toLowerCase() === 'quit' || input.trim().toLowerCase() === 'exit') {
+      console.log("Goodbye!");
+      rl.close();
+      process.exit(0);
+    }
+
+    await handleUserMessage(userId, input, async (response) => {
+      console.log('\n' + response);
+    });
+  }
+}

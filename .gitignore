@@ -41,3 +41,7 @@ tmp/
 temp/
 *.tmp
 slides
+
+# WhatsApp auth credentials
+auth_info_baileys/
+.pi
