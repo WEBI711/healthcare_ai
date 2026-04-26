@@ -1,13 +1,14 @@
-import { getContext, createNewContext, saveContext } from './modules/contextManager.js';
-import converse from './modules/converse.js';
-import model from './modules/model.js';
+import { getContext, createNewContext, saveContext } from '#modules/contextManager.js';
+import converse from '#modules/converse.js';
+import model from '#modules/model.js';
 
 export type ResponseCallback = (response: string) => Promise<void>;
 
 export async function handleUserMessage(
   userId: string, 
   text: string, 
-  responseCallback: ResponseCallback
+  responseCallback: ResponseCallback,
+  phoneNumber?: string
 ): Promise<void> {
   // Get or create context for this user
   const context = await getContext(userId) ?? await createNewContext(userId);
@@ -15,8 +16,11 @@ export async function handleUserMessage(
   // Add user message to context
   context.messages.push({ role: 'user', content: text, timestamp: Date.now() });
 
-  // Run conversation
-  await converse(context, model);
+  // Run conversation with user context
+  await converse(context, model, {
+    userId,
+    phoneNumber: phoneNumber || userId
+  });
 
   // Get the AI's response (last message in context)
   const lastMessage = context.messages[context.messages.length - 1];

@@ -1,5 +1,5 @@
 import * as readline from "readline";
-import { handleUserMessage } from '../conversation.js';
+import { handleUserMessage } from '#src/conversation.js';
 
 export async function startCLI(): Promise<void> {
   const rl = readline.createInterface({
@@ -26,6 +26,6 @@ export async function startCLI(): Promise<void> {
 
     await handleUserMessage(userId, input, async (response) => {
       console.log('\n' + response);
-    });
+    }, userId);
   }
 }

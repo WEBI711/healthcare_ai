@@ -1,6 +1,14 @@
 import { stream, Context, complete } from "@mariozechner/pi-ai"
-import _model from './model.js';
-export default async function (context: Context, model: typeof _model) {
+import _model from '#modules/model.js';
+import { executeCronTool } from '#modules/cronTools.js';
+
+export interface ConverseOptions {
+  userId: string;
+  phoneNumber: string;
+}
+
+export default async function (context: Context, model: typeof _model, options: ConverseOptions) {
+  const { userId, phoneNumber } = options;
 
   console.log("conversing...");
   const s = stream(model, context, {
@@ -60,14 +68,21 @@ export default async function (context: Context, model: typeof _model) {
   // Handle tool calls if any
   const toolCalls = finalMessage.content.filter(b => b.type === 'toolCall');
   for (const call of toolCalls) {
-    // Execute the tool
-    const result = call.name === 'get_time'
-      ? new Date().toLocaleString('en-US', {
+    let result: string;
+    
+    // Execute the appropriate tool
+    if (call.name === 'get_time') {
+      result = new Date().toLocaleString('en-US', {
         timeZone: call.arguments.timezone || 'UTC',
         dateStyle: 'full',
         timeStyle: 'long'
-      })
-      : 'Unknown tool';
+      });
+    } else if (['schedule_reminder', 'list_cron_jobs', 'delete_cron_job', 'update_cron_job'].includes(call.name)) {
+      // Execute cron-related tools
+      result = await executeCronTool(call.name, call.arguments, userId, phoneNumber);
+    } else {
+      result = 'Unknown tool';
+    }
 
     // Add tool result to context (supports text and images)
     context.messages.push({

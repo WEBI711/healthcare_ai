@@ -2,11 +2,29 @@ import { startWhatsApp, sendTextMessage, sendTypingIndicator, stopTypingIndicato
 import { handleUserMessage } from '#src/conversation.js';
 import { check_if_allowed } from '#modules/allowlist_manager.js'
 import { whatsAppService } from '#modules/whatsappService.js';
+import { getAgenda, restoreAgendaJobs, stopAgenda } from '#modules/agenda.js';
+import { defineAgendaJobs } from '#modules/agendaJobDefinitions.js';
 
 export async function startWhatsAppMode(): Promise<void> {
   console.log('📱 WhatsApp Mode - Starting...\n');
 
+  // Initialize Agenda
+  const agenda = getAgenda();
+
+  // Define job handlers
+  await defineAgendaJobs();
+
+  // Start Agenda processing
+  await agenda.start();
+  console.log('[Agenda] Agenda started');
+
+  // Restore jobs from database
+  await restoreAgendaJobs();
+
   await startWhatsApp(async (message: WhatsAppMessage, sock: WASocket) => {
+    // Set the socket for the service (used by cron jobs)
+    whatsAppService.setSocket(sock);
+
     console.log(`📨 Message from ${message.from_alt}: ${message.text}`);
     let is_allowed = await check_if_allowed(message.from_alt);
     if (!is_allowed) {
@@ -25,3 +43,5 @@ export async function startWhatsAppMode(): Promise<void> {
     }, message.from);
   });
 }
+
+export { stopAgenda };
