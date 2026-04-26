@@ -1,10 +1,10 @@
-import { 
-  makeWASocket, 
-  useMultiFileAuthState, 
-  DisconnectReason, 
-  WASocket as _WASocket, 
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  WASocket as _WASocket,
   Browsers,
-  fetchLatestBaileysVersion 
+  fetchLatestBaileysVersion
 } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
 
@@ -19,6 +19,7 @@ let pairingCodeRequested = false;
 export interface WhatsAppMessage {
   id: string;
   from: string;
+  from_alt: string;
   text: string;
   isGroup: boolean;
   timestamp: number;
@@ -45,7 +46,7 @@ export async function startWhatsApp(onMessage: MessageHandler): Promise<WASocket
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  
+
   // Fetch latest WhatsApp version to avoid 405 errors
   const { version, isLatest } = await fetchLatestBaileysVersion();
   console.log(`Using WhatsApp version: ${version.join('.')}, Latest: ${isLatest}`);
@@ -75,14 +76,14 @@ export async function startWhatsApp(onMessage: MessageHandler): Promise<WASocket
     // Request pairing code when not registered and QR is available
     if (qr && !sock.authState.creds.registered && !pairingCodeRequested) {
       pairingCodeRequested = true;
-      
+
       try {
         const phoneNumber = await askQuestion('Enter phone number for pairing code (with country code, e.g., 12345678901), or just press Enter to use QR: ');
-        
+
         if (phoneNumber && phoneNumber.trim()) {
           // Wait a moment for socket to be ready
           await new Promise(resolve => setTimeout(resolve, 2000));
-          
+
           const code = await sock.requestPairingCode(phoneNumber.trim());
           console.log(`\n🔢 Your pairing code: ${code}`);
           console.log('Open WhatsApp > Settings > Linked Devices > Link with phone number');
@@ -97,9 +98,9 @@ export async function startWhatsApp(onMessage: MessageHandler): Promise<WASocket
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      
+
       console.log('Connection closed. Status:', statusCode, 'Reconnecting:', shouldReconnect);
-      
+
       if (statusCode === 405) {
         console.log('\n⚠️  WhatsApp authentication blocked (405)');
         console.log('Solutions:');
@@ -107,12 +108,12 @@ export async function startWhatsApp(onMessage: MessageHandler): Promise<WASocket
         console.log('2. Clear auth: rm -rf auth_info_baileys');
         console.log('3. Try a different WhatsApp account\n');
       }
-      
+
       if (shouldReconnect) {
         pairingCodeRequested = false;
         // Exponential backoff for reconnection
         const delay = Math.min(30000, 5000 + Math.random() * 5000);
-        console.log(`Reconnecting in ${Math.round(delay/1000)}s...`);
+        console.log(`Reconnecting in ${Math.round(delay / 1000)}s...`);
         setTimeout(() => startWhatsApp(onMessage), delay);
       }
     } else if (connection === 'open') {
@@ -125,19 +126,21 @@ export async function startWhatsApp(onMessage: MessageHandler): Promise<WASocket
     for (const msg of m.messages) {
       if (msg.key.fromMe) continue;
 
-      const messageText = msg.message?.conversation 
+      const messageText = msg.message?.conversation
         || msg.message?.extendedTextMessage?.text;
-      
+
       if (!messageText) continue;
 
       const isGroup = msg.key.remoteJid?.endsWith('@g.us') || false;
       if (isGroup) continue;
 
       const from = msg.key.remoteJid?.replace('@s.whatsapp.net', '') || 'unknown';
+      const from_alt = msg.key.remoteJidAlt?.replace('@s.whatsapp.net', '') || 'unknown';
 
       const whatsAppMessage: WhatsAppMessage = {
         id: msg.key.id || 'unknown',
         from,
+        from_alt,
         text: messageText,
         isGroup,
         timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) * 1000 : Date.now(),
