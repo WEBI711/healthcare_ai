@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: healthcare_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"    # MongoDB port
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: healthcare_app
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/healthcare_assistant
+    ports:
+      - "3000:3000"      # App port (for future web interface)
+      - "9229:9229"      # Node.js debugger port
+    volumes:
+      - ./auth_info_baileys:/app/auth_info_baileys
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+        - action: rebuild
+          path: ./package.json
+
+volumes:
+  mongo_data:
