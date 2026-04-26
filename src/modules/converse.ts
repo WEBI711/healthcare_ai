@@ -1,6 +1,6 @@
 import { stream, Context, complete } from "@mariozechner/pi-ai"
 import _model from './model.js';
-export default async function(context: Context, model: typeof _model) {
+export default async function (context: Context, model: typeof _model) {
 
   console.log("conversing...");
   const s = stream(model, context, {
@@ -48,7 +48,7 @@ export default async function(context: Context, model: typeof _model) {
         console.log(`\nFinished: ${event.reason}`);
         break;
       case 'error':
-        console.error(`Error: ${event.error}`);
+        console.error(`Error: ${event.error.errorMessage}`);
         break;
     }
   }
