@@ -1,17 +1,30 @@
 import { getContext, createNewContext, saveContext } from '#modules/contextManager.js';
 import converse from '#modules/converse.js';
 import model from '#modules/model.js';
+import { cronToolDefinitions } from '#modules/cronTools.js'
+import { Type, Tool } from '@mariozechner/pi-ai';
 
 export type ResponseCallback = (response: string) => Promise<void>;
 
 export async function handleUserMessage(
-  userId: string, 
-  text: string, 
+  userId: string,
+  text: string,
   responseCallback: ResponseCallback,
   phoneNumber?: string
 ): Promise<void> {
   // Get or create context for this user
   const context = await getContext(userId) ?? await createNewContext(userId);
+
+  context.tools = [
+    ...cronToolDefinitions,
+    {
+      name: 'get_time',
+      description: 'Get the current time in a specific timezone',
+      parameters: Type.Object({
+        timezone: Type.String({ description: 'Timezone (e.g., "America/New_York", "Europe/London", "UTC")' })
+      })
+    },
+  ]
 
   // Add user message to context
   context.messages.push({ role: 'user', content: text, timestamp: Date.now() });
@@ -25,7 +38,7 @@ export async function handleUserMessage(
   // Get the AI's response (last message in context)
   const lastMessage = context.messages[context.messages.length - 1];
   let responseText = '';
-  
+
   if (lastMessage?.content && Array.isArray(lastMessage.content)) {
     // Extract text from content blocks
     for (const block of lastMessage.content) {

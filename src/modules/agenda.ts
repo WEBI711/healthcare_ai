@@ -1,6 +1,14 @@
 import { Agenda } from 'agenda';
 import { MongoBackend } from '@agendajs/mongo-backend';
 
+/**
+ * Check if a cron expression represents a one-off schedule.
+ * One-off expressions start with 'at ' (ISO date format for Agenda.schedule)
+ */
+export function isOneOffExpression(expression: string): boolean {
+  return expression.startsWith('at ');
+}
+
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_assistant';
 
 // Singleton Agenda instance
@@ -68,8 +76,12 @@ export async function restoreAgendaJobs(): Promise<void> {
 
       if (isOneOff) {
         // One-off job: re-schedule if not already run
+        // Remove 'at ' prefix if still present (for backwards compatibility)
+        const scheduleTime = actualCronExpr.replace(/^at /, '');
+        console.log(`[Agenda] Restoring one-off job "${job.name}" scheduled for: ${scheduleTime}`);
+
         if (!job.lastRunAt) {
-          await agenda.schedule(actualCronExpr, 'send-whatsapp-message', {
+          await agenda.schedule(scheduleTime, 'send-whatsapp-message', {
             userId: job.userId,
             message: job.message,
             jobName: job.name,
@@ -106,9 +118,11 @@ export async function restoreAgendaJobs(): Promise<void> {
 /**
  * Cancel all Agenda jobs matching userId and name.
  */
-export async function cancelJob(userId: string, name: string): Promise<void> {
+export async function cancelJob(userId: string, name: string): Promise<number> {
   const agenda = getAgenda();
-  await agenda.cancel({
+  console.log(`[Agenda] Canceling job for user ${userId}, name: ${name}`);
+
+  const result = await agenda.cancel({
     name: 'send-whatsapp-message',
     // Agenda v6 uses data for matching — pass partial data object
     data: {
@@ -116,4 +130,7 @@ export async function cancelJob(userId: string, name: string): Promise<void> {
       jobName: name,
     },
   });
+
+  console.log(`[Agenda] Canceled ${result} jobs`);
+  return result;
 }

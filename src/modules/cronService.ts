@@ -1,13 +1,7 @@
 import { CronJobModel, ICronJob } from '#database/index.js';
-import { getAgenda, cancelJob } from '#modules/agenda.js';
+import { getAgenda, cancelJob, isOneOffExpression } from '#modules/agenda.js';
 
-/**
- * Check if a cron expression represents a one-off schedule.
- * One-off expressions start with 'at ' (ISO date format for Agenda.schedule)
- */
-function isOneOffExpression(expression: string): boolean {
-  return expression.startsWith('at ');
-}
+
 
 export interface CreateCronJobInput {
   userId: string;
@@ -33,6 +27,8 @@ export interface UpdateCronJobInput {
  */
 export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob> {
   const { userId, name, naturalSchedule, cronExpression, timezone, message } = input;
+
+  console.log(`[CronService] Creating job:`, { name, cronExpression, isOneOff: isOneOffExpression(cronExpression) });
 
   const agenda = getAgenda();
 
@@ -71,15 +67,22 @@ export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob
   }
 
   // Store in database
+  // For one-off jobs, remove the 'at ' prefix before storing to avoid double prefix issues
+  const storedCronExpression = isOneOffExpression(cronExpression)
+    ? `once:${cronExpression.replace('at ', '')}`
+    : cronExpression;
+
   const cronJob = await CronJobModel.create({
     userId,
     name,
     naturalSchedule,
-    cronExpression: isOneOffExpression(cronExpression) ? `once:${cronExpression}` : cronExpression,
+    cronExpression: storedCronExpression,
     timezone,
     message,
     enabled: true,
   });
+
+  console.log(`[CronService] Stored job in DB with cronExpression: ${storedCronExpression}`);
 
   console.log(`[Agenda] Created job "${name}" for user ${userId}: ${naturalSchedule}`);
 
