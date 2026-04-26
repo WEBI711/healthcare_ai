@@ -1,5 +1,5 @@
 // Context manager that stores chat context in MongoDB
-import { ContextModel, IContext } from '../database/index.js';
+import { ContextModel, IContext } from '#database/index.js';
 import { Context } from '@mariozechner/pi-ai';
 
 interface ContextManager {
