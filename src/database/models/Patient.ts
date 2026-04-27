@@ -12,6 +12,12 @@ export interface IPatientInfoSchema extends Document {
 
 const PatientInfoSchema = new mongoose.Schema<IPatientInfoSchema>({
     userId: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true },
+    number: { type: String, required: true },
+    procedure: { type: String, required: true },
+    procedureDate: { type: Date, required: true },
+    history: { type: String, required: false },
+    notes: { type: String, required: false },
 }, {
     timestamps: true,
 });

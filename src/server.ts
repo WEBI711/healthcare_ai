@@ -1,10 +1,12 @@
 import express, { Request, Response, NextFunction } from 'express';
+import patientRoutes from '#routes/registerPatient.js';
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/register-patient', patientRoutes);
 
 // Routes
 app.get('/health', (req: Request, res: Response) => {

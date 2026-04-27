@@ -11,6 +11,7 @@ type Body = { name: string, number: string; procedure: string, procedureDate: Da
 
 router.post('/', async (req: Request<{}, {}, Body>, res) => {
     try {
+        debugger;
         const { name, number, procedure, procedureDate, history, notes } = req.body;
         let { patient, context } = await registerPatient(name, number, procedure, procedureDate, history, notes);
         if (patient && context) {
