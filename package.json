@@ -39,6 +39,7 @@
     "#modules/*": "./dist/modules/*",
     "#models/*": "./dist/database/models/*",
     "#database/*": "./dist/database/*",
+    "#routes/*": "./dist/routes/*",
     "#src/*": "./dist/*"
   }
 }

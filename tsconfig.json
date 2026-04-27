@@ -20,6 +20,7 @@
       "#modules/*": ["./src/modules/*"],
       "#models/*": ["./src/database/models/*"],
       "#database/*": ["./src/database/*"],
+      "#routes/*": ["./src/routes/*"],
       "#src/*": ["./src/*"]
     }
   },
