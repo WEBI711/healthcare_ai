@@ -3,11 +3,18 @@ import { connectDB } from '#database/index.js';
 import { startCLI } from '#modules/cliRunner.js';
 import { startWhatsAppMode } from '#modules/whatsappRunner.js';
 import { stopAgenda } from '#modules/agenda.js';
+import app from './server.js';
 
 const USE_WHATSAPP = process.env.USE_WHATSAPP === 'true';
+const PORT = process.env.SERVERPORT || 3000;
 
 async function main(): Promise<void> {
   await connectDB();
+
+  // Start Express server
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 
   // Handle graceful shutdown
   process.on('SIGINT', async () => {

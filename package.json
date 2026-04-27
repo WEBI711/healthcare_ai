@@ -14,9 +14,11 @@
     "docker:up": "docker compose up --watch",
     "docker:build": "docker compose up --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f app"
+    "docker:logs": "docker compose logs -f app",
+    "docker:clean": "docker compose down -v --rmi all --remove-orphans && docker system prune -f"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^22.14.1",
     "@types/qrcode-terminal": "^0.12.2",
     "typescript": "^5.8.3"
@@ -28,6 +30,7 @@
     "agenda": "^6.2.4",
     "cron-parser": "^5.5.0",
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "mongoose": "^9.5.0",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0"

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mongo:
@@ -6,7 +6,7 @@ services:
     container_name: healthcare_mongo
     restart: unless-stopped
     ports:
-      - "27017:27017"    # MongoDB port
+      - "27017:27017" # MongoDB port
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -29,8 +29,8 @@ services:
     environment:
       - MONGODB_URI=mongodb://mongo:27017/healthcare_assistant
     ports:
-      - "3000:3000"      # App port (for future web interface)
-      - "9229:9229"      # Node.js debugger port
+      - "3000:3000" # App port (for future web interface)
+      - "9229:9229" # Node.js debugger port
     volumes:
       - ./auth_info_baileys:/app/auth_info_baileys
     develop:
