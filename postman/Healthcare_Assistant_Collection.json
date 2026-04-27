@@ -1,0 +1,78 @@
+{
+  "info": {
+    "name": "Healthcare Assistant API",
+    "description": "API collection for Healthcare Assistant",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register Patient",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"number\": \"+1234567890\",\n  \"procedure\": \"Dental Cleaning\",\n  \"procedureDate\": \"2025-06-15T10:00:00.000Z\",\n  \"history\": \"No known allergies\",\n  \"notes\": \"First visit\",\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/register-patient",
+          "host": ["{{base_url}}"],
+          "path": ["api", "register-patient"]
+        },
+        "description": "Register a new patient with full details"
+      },
+      "response": []
+    },
+    {
+      "name": "Register Patient (Minimal)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Jane Smith\",\n  \"number\": \"+9876543210\",\n  \"procedure\": \"Consultation\",\n  \"procedureDate\": \"2025-07-20T14:30:00.000Z\",\n  \"history\": \"\",\n  \"notes\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/register-patient",
+          "host": ["{{base_url}}"],
+          "path": ["api", "register-patient"]
+        },
+        "description": "Register a patient with minimal required data"
+      },
+      "response": []
+    }
+  ]
+}
