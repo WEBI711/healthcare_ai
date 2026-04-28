@@ -35,12 +35,12 @@ export async function startWhatsAppMode(): Promise<void> {
     // Show typing indicator
     await sendTypingIndicator(sock, message.from);
 
-    await handleUserMessage(message.from, message.text, async (response) => {
+    await handleUserMessage(message.from_alt, message.text, async (response) => {
       // Stop typing and send response
       await stopTypingIndicator(sock, message.from);
       await sendTextMessage(sock, message.from, response);
       console.log(`📤 Reply sent to ${message.from}`);
-    }, message.from);
+    }, message.from_alt);
   });
 }
 

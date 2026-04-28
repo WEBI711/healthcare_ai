@@ -1,7 +1,9 @@
 import { getContext, createNewContext, saveContext } from '#modules/contextManager.js';
 import converse from '#modules/converse.js';
 import model from '#modules/model.js';
-import { cronToolDefinitions } from '#modules/cronTools.js'
+import { cronToolDefinitions } from '#modules/cronTools.js';
+import { patientToolDefinitions } from '#modules/patientTools.js';
+import { getPatientContext } from '#modules/patientContext.js';
 import { Type, Tool } from '@mariozechner/pi-ai';
 
 export type ResponseCallback = (response: string) => Promise<void>;
@@ -12,11 +14,22 @@ export async function handleUserMessage(
   responseCallback: ResponseCallback,
   phoneNumber?: string
 ): Promise<void> {
-  // Get or create context for this user
-  const context = await getContext(userId) ?? await createNewContext(userId);
+  // Check patient registration and build enriched context
+  const patientCtx = await getPatientContext(userId);
+  if (!patientCtx) {
+    await responseCallback("Hi! It looks like you're not registered in our system. Please contact your clinic or healthcare provider to get set up.");
+    return;
+  }
 
-  context.tools = [
+  // Get or create conversation context for this user
+  const chatContext = await getContext(userId) ?? await createNewContext(userId);
+  // Set the system prompt from patient context (not stored in DB, set fresh each time)
+  chatContext.systemPrompt = patientCtx.context.systemPrompt;
+
+  // Assemble tools
+  chatContext.tools = [
     ...cronToolDefinitions,
+    ...patientToolDefinitions,
     {
       name: 'get_time',
       description: 'Get the current time in a specific timezone',
@@ -27,16 +40,16 @@ export async function handleUserMessage(
   ]
 
   // Add user message to context
-  context.messages.push({ role: 'user', content: text, timestamp: Date.now() });
+  chatContext.messages.push({ role: 'user', content: text, timestamp: Date.now() });
 
   // Run conversation with user context
-  await converse(context, model, {
+  await converse(chatContext, model, {
     userId,
     phoneNumber: phoneNumber || userId
   });
 
   // Get the AI's response (last message in context)
-  const lastMessage = context.messages[context.messages.length - 1];
+  const lastMessage = chatContext.messages[chatContext.messages.length - 1];
   let responseText = '';
 
   if (lastMessage?.content && Array.isArray(lastMessage.content)) {
@@ -52,5 +65,5 @@ export async function handleUserMessage(
   await responseCallback(responseText || "I'm not sure how to respond to that.");
 
   // Save context
-  await saveContext(userId, context);
+  await saveContext(userId, chatContext);
 }

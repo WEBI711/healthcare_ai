@@ -1,6 +1,7 @@
 import { stream, Context, complete } from "@mariozechner/pi-ai"
 import _model from '#modules/model.js';
 import { executeCronTool } from '#modules/cronTools.js';
+import { executePatientTool } from '#modules/patientTools.js';
 
 export interface ConverseOptions {
   userId: string;
@@ -80,6 +81,9 @@ export default async function (context: Context, model: typeof _model, options: 
     } else if (['schedule_reminder', 'list_cron_jobs', 'delete_cron_job', 'update_cron_job'].includes(call.name)) {
       // Execute cron-related tools
       result = await executeCronTool(call.name, call.arguments, userId, phoneNumber);
+    } else if (call.name === 'update_patient_info') {
+      // Execute patient-related tools
+      result = await executePatientTool(call.name, call.arguments, userId);
     } else {
       result = 'Unknown tool';
     }

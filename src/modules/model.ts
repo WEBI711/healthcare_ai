@@ -12,6 +12,11 @@ const model: Model<'openai-completions'> = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 256000,
   maxTokens: 8192,
+  // Moonshot API compat: uses 'system' role (not 'developer'), doesn't support 'store' param
+  compat: {
+    supportsDeveloperRole: false,
+    supportsStore: false,
+  },
 };
 export default model
 

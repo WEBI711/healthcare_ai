@@ -17,9 +17,7 @@ export async function getContext(userId: string): Promise<Context | undefined> {
 
 export async function createNewContext(userId: string): Promise<Context> {
   const context: Context = {
-    messages: [
-      { role: 'user', content: 'Hello, how are you?', timestamp: Date.now() },
-    ],
+    messages: [],
   };
 
   await ContextModel.create({
