@@ -13,7 +13,7 @@ export async function startCLI(): Promise<void> {
 
   console.log('🖥️  CLI Mode - Type your messages (or "quit" to exit)\n');
 
-  const userId = 'test-user-123';
+  const phoneNumber = 'test-user-123';
 
   while (true) {
     const input = await askQuestion("\nPrompt: ");
@@ -24,8 +24,8 @@ export async function startCLI(): Promise<void> {
       process.exit(0);
     }
 
-    await handleUserMessage(userId, input, async (response) => {
+    await handleUserMessage(phoneNumber, input, async (response) => {
       console.log('\n' + response);
-    }, userId);
+    });
   }
 }

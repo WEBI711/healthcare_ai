@@ -40,7 +40,7 @@ export async function startWhatsAppMode(): Promise<void> {
       await stopTypingIndicator(sock, message.from);
       await sendTextMessage(sock, message.from, response);
       console.log(`📤 Reply sent to ${message.from}`);
-    }, message.from_alt);
+    });
   });
 }
 

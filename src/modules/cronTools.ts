@@ -61,19 +61,17 @@ export const cronToolDefinitions: Tool[] = [
 
 // Tool execution handlers
 export async function executeCronTool(
-  toolName: string, 
-  args: any, 
-  userId: string,
+  toolName: string,
+  args: any,
   phoneNumber: string
 ): Promise<string> {
-  console.log(`[CronTool] Executing tool: ${toolName}`, { userId, args });
+  console.log(`[CronTool] Executing tool: ${toolName}`, { phoneNumber, args });
 
   switch (toolName) {
     case 'schedule_reminder': {
       console.log(`[CronTool] schedule_reminder args:`, JSON.stringify(args, null, 2));
       try {
         await createCronJob({
-          userId,
           phoneNumber,
           name: args.name,
           naturalSchedule: args.naturalSchedule,
@@ -82,36 +80,36 @@ export async function executeCronTool(
           message: args.message,
           isOneOff: args.isOneOff || false,
         });
-        
+
         return `✅ Scheduled "${args.name}" successfully! I'll send you "${args.message}" ${args.naturalSchedule}.`;
       } catch (error: any) {
         return `❌ Failed to schedule: ${error.message}`;
       }
     }
-    
+
     case 'list_cron_jobs': {
-      const jobs = await listCronJobs(userId);
+      const jobs = await listCronJobs(phoneNumber);
       if (jobs.length === 0) {
         return "You don't have any scheduled reminders.";
       }
-      
+
       const jobList = jobs.map((job: any) => {
         const status = job.enabled ? '✅' : '⏸️';
         return `${status} **${job.name}**: "${job.message}" — ${job.naturalSchedule} (${job.timezone})`;
       }).join('\n');
-      
+
       return `Here are your scheduled reminders:\n${jobList}`;
     }
-    
+
     case 'delete_cron_job': {
-      const deleted = await deleteCronJob(userId, args.name);
+      const deleted = await deleteCronJob(phoneNumber, args.name);
       if (deleted) {
         return `✅ Deleted "${args.name}" successfully.`;
       } else {
         return `❌ Couldn't find a reminder named "${args.name}".`;
       }
     }
-    
+
     case 'update_cron_job': {
       const updates: any = {};
       if (args.naturalSchedule) updates.naturalSchedule = args.naturalSchedule;
@@ -119,8 +117,8 @@ export async function executeCronTool(
       if (args.timezone) updates.timezone = args.timezone;
       if (args.message) updates.message = args.message;
       if (typeof args.enabled === 'boolean') updates.enabled = args.enabled;
-      
-      const updated = await updateCronJob(userId, args.name, updates);
+
+      const updated = await updateCronJob(phoneNumber, args.name, updates);
       if (updated) {
         let response = `✅ Updated "${args.name}"`;
         if (args.naturalSchedule) response += ` to run ${args.naturalSchedule}`;
@@ -131,7 +129,7 @@ export async function executeCronTool(
         return `❌ Couldn't find a reminder named "${args.name}".`;
       }
     }
-    
+
     default:
       return `Unknown tool: ${toolName}`;
   }

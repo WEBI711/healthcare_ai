@@ -4,7 +4,6 @@ import { getAgenda, cancelJob, isOneOffExpression } from '#modules/agenda.js';
 
 
 export interface CreateCronJobInput {
-  userId: string;
   phoneNumber: string;
   name: string;
   naturalSchedule: string;
@@ -26,19 +25,19 @@ export interface UpdateCronJobInput {
  * Create a new cron job — overwrites if same userId + name already exists (Decision A).
  */
 export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob> {
-  const { userId, name, naturalSchedule, cronExpression, timezone, message } = input;
+  const { phoneNumber, name, naturalSchedule, cronExpression, timezone, message } = input;
 
   console.log(`[CronService] Creating job:`, { name, cronExpression, isOneOff: isOneOffExpression(cronExpression) });
 
   const agenda = getAgenda();
 
   // Check for existing job with same name — overwrite (Decision A: same user, same name → update)
-  const existing = await CronJobModel.findOne({ userId, name });
+  const existing = await CronJobModel.findOne({ userId: phoneNumber, name });
   if (existing) {
     // Cancel existing Agenda job
-    await cancelJob(userId, name);
+    await cancelJob(phoneNumber, name);
     // Delete existing DB record (we'll recreate it below)
-    await CronJobModel.deleteOne({ userId, name });
+    await CronJobModel.deleteOne({ userId: phoneNumber, name });
   }
 
   // Determine if this is a recurring or one-off job
@@ -46,7 +45,7 @@ export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob
     // One-off: schedule at a specific time (remove 'at ' prefix for Agenda)
     const scheduleTime = cronExpression.replace('at ', '');
     await agenda.schedule(scheduleTime, 'send-whatsapp-message', {
-      userId,
+      userId: phoneNumber,
       message,
       jobName: name,
       timezone,
@@ -57,7 +56,7 @@ export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob
       cronExpression,
       'send-whatsapp-message',
       {
-        userId,
+        userId: phoneNumber,
         message,
         jobName: name,
         timezone,
@@ -73,7 +72,7 @@ export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob
     : cronExpression;
 
   const cronJob = await CronJobModel.create({
-    userId,
+    userId: phoneNumber,
     name,
     naturalSchedule,
     cronExpression: storedCronExpression,
@@ -84,37 +83,37 @@ export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob
 
   console.log(`[CronService] Stored job in DB with cronExpression: ${storedCronExpression}`);
 
-  console.log(`[Agenda] Created job "${name}" for user ${userId}: ${naturalSchedule}`);
+  console.log(`[Agenda] Created job "${name}" for user ${phoneNumber}: ${naturalSchedule}`);
 
   return cronJob;
 }
 
-export async function listCronJobs(userId: string): Promise<ICronJob[]> {
-  return await CronJobModel.find({ userId }).sort({ createdAt: -1 });
+export async function listCronJobs(phoneNumber: string): Promise<ICronJob[]> {
+  return await CronJobModel.find({ userId: phoneNumber }).sort({ createdAt: -1 });
 }
 
-export async function deleteCronJob(userId: string, name: string): Promise<boolean> {
-  const job = await CronJobModel.findOne({ userId, name });
+export async function deleteCronJob(phoneNumber: string, name: string): Promise<boolean> {
+  const job = await CronJobModel.findOne({ userId: phoneNumber, name });
   if (!job) {
     return false;
   }
 
   // Cancel the Agenda job
-  await cancelJob(userId, name);
+  await cancelJob(phoneNumber, name);
 
   // Remove from database
-  await CronJobModel.deleteOne({ userId, name });
+  await CronJobModel.deleteOne({ userId: phoneNumber, name });
 
-  console.log(`[Agenda] Deleted job "${name}" for user ${userId}`);
+  console.log(`[Agenda] Deleted job "${name}" for user ${phoneNumber}`);
   return true;
 }
 
 export async function updateCronJob(
-  userId: string,
+  phoneNumber: string,
   name: string,
   updates: UpdateCronJobInput
 ): Promise<ICronJob | null> {
-  const job = await CronJobModel.findOne({ userId, name });
+  const job = await CronJobModel.findOne({ userId: phoneNumber, name });
   if (!job) {
     return null;
   }
@@ -142,17 +141,17 @@ export async function updateCronJob(
 
   // Always cancel the old job and re-create if changes affect scheduling
   if (updates.cronExpression !== undefined || updates.message !== undefined || updates.timezone !== undefined || updates.enabled !== undefined) {
-    await cancelJob(userId, name);
+    await cancelJob(phoneNumber, name);
 
     // If disabling or the job was disabled, don't recreate
     if (updates.enabled === false || (updates.enabled === undefined && updateData.enabled !== true)) {
       // Just update DB without re-scheduling
       const updated = await CronJobModel.findOneAndUpdate(
-        { userId, name },
+        { userId: phoneNumber, name },
         updateData,
         { new: true }
       );
-      console.log(`[Agenda] Disabled job "${name}" for user ${userId}`);
+      console.log(`[Agenda] Disabled job "${name}" for user ${phoneNumber}`);
       return updated;
     }
 
@@ -164,7 +163,7 @@ export async function updateCronJob(
     if (isOneOffExpression(newCronExpr)) {
       const scheduleTime = newCronExpr.replace('at ', '');
       await agenda.schedule(scheduleTime, 'send-whatsapp-message', {
-        userId,
+        userId: phoneNumber,
         message: newMessage,
         jobName: name,
         timezone: newTimezone,
@@ -174,7 +173,7 @@ export async function updateCronJob(
         newCronExpr,
         'send-whatsapp-message',
         {
-          userId,
+          userId: phoneNumber,
           message: newMessage,
           jobName: name,
           timezone: newTimezone,
@@ -186,12 +185,12 @@ export async function updateCronJob(
 
   // Update in database
   const updated = await CronJobModel.findOneAndUpdate(
-    { userId, name },
+    { userId: phoneNumber, name },
     updateData,
     { new: true }
   );
 
-  console.log(`[Agenda] Updated job "${name}" for user ${userId}`);
+  console.log(`[Agenda] Updated job "${name}" for user ${phoneNumber}`);
   return updated;
 }
 

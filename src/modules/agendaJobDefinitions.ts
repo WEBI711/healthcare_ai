@@ -25,14 +25,14 @@ async function rescheduleWithBackoff(job: Job<any>, retryCount: number, errorMes
 /**
  * Send a failure notification to the user.
  */
-async function notifyUserOfFailure(userId: string, jobName: string, maxRetries: number): Promise<void> {
+async function notifyUserOfFailure(phoneNumber: string, jobName: string, maxRetries: number): Promise<void> {
   try {
     await whatsAppService.sendMessage(
-      userId,
+      phoneNumber,
       `⚠️ I couldn't send your "${jobName}" reminder after ${maxRetries} attempts. Please check your connection.`
     );
   } catch (notifyError: any) {
-    console.error(`[Agenda] Failed to notify user ${userId} about missed job "${jobName}":`, notifyError.message);
+    console.error(`[Agenda] Failed to notify user ${phoneNumber} about missed job "${jobName}":`, notifyError.message);
   }
 }
 
@@ -40,7 +40,7 @@ async function notifyUserOfFailure(userId: string, jobName: string, maxRetries: 
  * The job processor: sends a WhatsApp message and handles retries/auditing.
  */
 async function sendWhatsAppMessageHandler(job: Job<any>): Promise<void> {
-  const { userId, message, jobName } = job.attrs.data as {
+  const { userId: phoneNumber, message, jobName } = job.attrs.data as {
     userId: string;
     message: string;
     jobName: string;
@@ -49,15 +49,15 @@ async function sendWhatsAppMessageHandler(job: Job<any>): Promise<void> {
   const runAt = job.attrs.nextRunAt || job.attrs.lastRunAt || new Date();
   const retryCount = job.attrs.failCount || 0;
 
-  console.log(`[Agenda] Executing "${jobName}" for user ${userId} (retry: ${retryCount})`);
+  console.log(`[Agenda] Executing "${jobName}" for user ${phoneNumber} (retry: ${retryCount})`);
 
   try {
     // Send the WhatsApp message
-    await whatsAppService.sendMessage(userId, message);
+    await whatsAppService.sendMessage(phoneNumber, message);
 
     // Log successful execution
     await JobAuditLogModel.create({
-      userId,
+      userId: phoneNumber,
       jobId: jobName,
       jobName,
       message,
@@ -69,19 +69,19 @@ async function sendWhatsAppMessageHandler(job: Job<any>): Promise<void> {
 
     // Update CronJob lastRunAt and reset retryCount
     await CronJobModel.findOneAndUpdate(
-      { userId, name: jobName },
+      { userId: phoneNumber, name: jobName },
       { lastRunAt: new Date(), retryCount: 0 }
     );
 
-    console.log(`[Agenda] Job "${jobName}" sent successfully to user ${userId}`);
+    console.log(`[Agenda] Job "${jobName}" sent successfully to user ${phoneNumber}`);
   } catch (error: any) {
     const errorMessage = error?.message || 'Unknown error';
 
-    console.error(`[Agenda] Job "${jobName}" failed for user ${userId}:`, errorMessage);
+    console.error(`[Agenda] Job "${jobName}" failed for user ${phoneNumber}:`, errorMessage);
 
     // Log the failure
     await JobAuditLogModel.create({
-      userId,
+      userId: phoneNumber,
       jobId: jobName,
       jobName,
       message,
@@ -96,11 +96,11 @@ async function sendWhatsAppMessageHandler(job: Job<any>): Promise<void> {
       await rescheduleWithBackoff(job, retryCount, errorMessage);
     } else {
       // Max retries reached — notify user
-      console.warn(`[Agenda] Job "${jobName}" failed after ${MAX_RETRIES} retries for user ${userId}`);
+      console.warn(`[Agenda] Job "${jobName}" failed after ${MAX_RETRIES} retries for user ${phoneNumber}`);
 
       // Log as missed
       await JobAuditLogModel.create({
-        userId,
+        userId: phoneNumber,
         jobId: jobName,
         jobName,
         message,
@@ -111,11 +111,11 @@ async function sendWhatsAppMessageHandler(job: Job<any>): Promise<void> {
       });
 
       // Send failure notification to user (Decision C)
-      await notifyUserOfFailure(userId, jobName, MAX_RETRIES);
+      await notifyUserOfFailure(phoneNumber, jobName, MAX_RETRIES);
 
       // Reset retryCount on the CronJob
       await CronJobModel.findOneAndUpdate(
-        { userId, name: jobName },
+        { userId: phoneNumber, name: jobName },
         { retryCount: 0 }
       );
     }

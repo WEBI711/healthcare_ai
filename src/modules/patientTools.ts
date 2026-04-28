@@ -24,9 +24,9 @@ export const patientToolDefinitions: Tool[] = [
 export async function executePatientTool(
     toolName: string,
     args: { notes?: string; history?: string },
-    userId: string
+    phoneNumber: string
 ): Promise<string> {
-    console.log(`[PatientTool] Executing tool: ${toolName}`, { userId, args });
+    console.log(`[PatientTool] Executing tool: ${toolName}`, { phoneNumber, args });
 
     switch (toolName) {
         case 'update_patient_info': {
@@ -40,7 +40,7 @@ export async function executePatientTool(
 
             try {
                 const updated = await PatientModel.findOneAndUpdate(
-                    { userId },
+                    { number: phoneNumber },
                     { $set: updates },
                     { new: true }
                 );

@@ -3,37 +3,37 @@ import { ContextModel, IContext } from '#database/index.js';
 import { Context } from '@mariozechner/pi-ai';
 
 interface ContextManager {
-  getContext: (userId: string) => Promise<Context | undefined>;
-  createNewContext: (userId: string) => Promise<Context>;
-  saveContext: (userId: string, context: Context) => Promise<void>;
-  deleteContext: (userId: string) => Promise<void>;
+  getContext: (phoneNumber: string) => Promise<Context | undefined>;
+  createNewContext: (phoneNumber: string) => Promise<Context>;
+  saveContext: (phoneNumber: string, context: Context) => Promise<void>;
+  deleteContext: (phoneNumber: string) => Promise<void>;
 }
 
-export async function getContext(userId: string): Promise<Context | undefined> {
-  const doc = await ContextModel.findOne({ userId });
+export async function getContext(phoneNumber: string): Promise<Context | undefined> {
+  const doc = await ContextModel.findOne({ phoneNumber });
   if (!doc) return undefined;
   return { messages: doc.messages };
 }
 
-export async function createNewContext(userId: string): Promise<Context> {
+export async function createNewContext(phoneNumber: string): Promise<Context> {
   const context: Context = {
     messages: [],
   };
 
   await ContextModel.create({
-    userId,
+    phoneNumber,
     messages: context.messages,
   });
 
   return context;
 }
 
-export async function saveContext(userId: string, context: Context): Promise<void> {
+export async function saveContext(phoneNumber: string, context: Context): Promise<void> {
   try {
     await ContextModel.findOneAndUpdate(
-      { userId },
+      { phoneNumber },
       {
-        userId,
+        phoneNumber,
         messages: context.messages,
       },
       { upsert: true }
@@ -44,9 +44,9 @@ export async function saveContext(userId: string, context: Context): Promise<voi
   }
 }
 
-export async function deleteContext(userId: string): Promise<void> {
+export async function deleteContext(phoneNumber: string): Promise<void> {
   try {
-    await ContextModel.deleteOne({ userId });
+    await ContextModel.deleteOne({ phoneNumber });
   } catch (e) {
     console.log(e)
     throw new Error("Error deleting context");

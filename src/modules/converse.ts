@@ -4,12 +4,11 @@ import { executeCronTool } from '#modules/cronTools.js';
 import { executePatientTool } from '#modules/patientTools.js';
 
 export interface ConverseOptions {
-  userId: string;
   phoneNumber: string;
 }
 
 export default async function (context: Context, model: typeof _model, options: ConverseOptions) {
-  const { userId, phoneNumber } = options;
+  const { phoneNumber } = options;
 
   console.log("conversing...");
   const s = stream(model, context, {
@@ -70,7 +69,7 @@ export default async function (context: Context, model: typeof _model, options: 
   const toolCalls = finalMessage.content.filter(b => b.type === 'toolCall');
   for (const call of toolCalls) {
     let result: string;
-    
+
     // Execute the appropriate tool
     if (call.name === 'get_time') {
       result = new Date().toLocaleString('en-US', {
@@ -80,10 +79,10 @@ export default async function (context: Context, model: typeof _model, options: 
       });
     } else if (['schedule_reminder', 'list_cron_jobs', 'delete_cron_job', 'update_cron_job'].includes(call.name)) {
       // Execute cron-related tools
-      result = await executeCronTool(call.name, call.arguments, userId, phoneNumber);
+      result = await executeCronTool(call.name, call.arguments, phoneNumber);
     } else if (call.name === 'update_patient_info') {
       // Execute patient-related tools
-      result = await executePatientTool(call.name, call.arguments, userId);
+      result = await executePatientTool(call.name, call.arguments, phoneNumber);
     } else {
       result = 'Unknown tool';
     }

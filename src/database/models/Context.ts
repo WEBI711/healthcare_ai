@@ -1,14 +1,14 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IContext extends Document {
-  userId: string;
+  phoneNumber: string;
   messages: any[];
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ContextSchema = new Schema<IContext>({
-  userId: { type: String, required: true, unique: true, index: true },
+  phoneNumber: { type: String, required: true, unique: true, index: true },
   messages: [],
 }, {
   timestamps: true,

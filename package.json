@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "license": "ISC",
-  "author": "Wahid Ejaz",
+  "author": "Wahid Ejaz <wahidejaz324@gmail.com>",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

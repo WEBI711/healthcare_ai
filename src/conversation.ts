@@ -9,20 +9,19 @@ import { Type, Tool } from '@mariozechner/pi-ai';
 export type ResponseCallback = (response: string) => Promise<void>;
 
 export async function handleUserMessage(
-  userId: string,
+  phoneNumber: string,
   text: string,
   responseCallback: ResponseCallback,
-  phoneNumber?: string
 ): Promise<void> {
   // Check patient registration and build enriched context
-  const patientCtx = await getPatientContext(userId);
+  const patientCtx = await getPatientContext(phoneNumber);
   if (!patientCtx) {
     await responseCallback("Hi! It looks like you're not registered in our system. Please contact your clinic or healthcare provider to get set up.");
     return;
   }
 
   // Get or create conversation context for this user
-  const chatContext = await getContext(userId) ?? await createNewContext(userId);
+  const chatContext = await getContext(phoneNumber) ?? await createNewContext(phoneNumber);
   // Set the system prompt from patient context (not stored in DB, set fresh each time)
   chatContext.systemPrompt = patientCtx.context.systemPrompt;
 
@@ -44,8 +43,7 @@ export async function handleUserMessage(
 
   // Run conversation with user context
   await converse(chatContext, model, {
-    userId,
-    phoneNumber: phoneNumber || userId
+    phoneNumber,
   });
 
   // Get the AI's response (last message in context)
@@ -65,5 +63,5 @@ export async function handleUserMessage(
   await responseCallback(responseText || "I'm not sure how to respond to that.");
 
   // Save context
-  await saveContext(userId, chatContext);
+  await saveContext(phoneNumber, chatContext);
 }
