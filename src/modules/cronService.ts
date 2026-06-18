@@ -1,5 +1,5 @@
 import { CronJobModel, ICronJob } from '#database/index.js';
-import { getAgenda, cancelJob, isOneOffExpression } from '#modules/agenda.js';
+import { getAgenda, cancelJob, isOneOffExpression, normalizeCronExpression } from '#modules/agenda.js';
 
 
 
@@ -42,8 +42,8 @@ export async function createCronJob(input: CreateCronJobInput): Promise<ICronJob
 
   // Determine if this is a recurring or one-off job
   if (isOneOffExpression(cronExpression)) {
-    // One-off: schedule at a specific time (remove 'at ' prefix for Agenda)
-    const scheduleTime = cronExpression.replace('at ', '');
+    // One-off: schedule at a specific time
+    const scheduleTime = normalizeCronExpression(cronExpression);
     await agenda.schedule(scheduleTime, 'send-whatsapp-message', {
       userId: phoneNumber,
       message,
@@ -143,9 +143,8 @@ export async function updateCronJob(
   if (updates.cronExpression !== undefined || updates.message !== undefined || updates.timezone !== undefined || updates.enabled !== undefined) {
     await cancelJob(phoneNumber, name);
 
-    // If disabling or the job was disabled, don't recreate
-    if (updates.enabled === false || (updates.enabled === undefined && updateData.enabled !== true)) {
-      // Just update DB without re-scheduling
+    // If explicitly disabling, just update DB without re-scheduling
+    if (updates.enabled === false) {
       const updated = await CronJobModel.findOneAndUpdate(
         { userId: phoneNumber, name },
         updateData,
@@ -156,13 +155,18 @@ export async function updateCronJob(
     }
 
     // Re-schedule with updated settings
-    const newCronExpr = updates.cronExpression || job.cronExpression;
+    // Normalize: convert DB-stored 'once:' prefix to 'at ' for isOneOffExpression check
+    const rawCronExpr = updates.cronExpression || job.cronExpression;
+    const normalizedForCheck = rawCronExpr.startsWith('once:')
+      ? `at ${normalizeCronExpression(rawCronExpr)}`
+      : rawCronExpr;
+    const isOneOff = isOneOffExpression(normalizedForCheck);
+    const effectiveCronExpr = normalizeCronExpression(rawCronExpr);
     const newMessage = updates.message || job.message;
     const newTimezone = updates.timezone || job.timezone;
 
-    if (isOneOffExpression(newCronExpr)) {
-      const scheduleTime = newCronExpr.replace('at ', '');
-      await agenda.schedule(scheduleTime, 'send-whatsapp-message', {
+    if (isOneOff) {
+      await agenda.schedule(effectiveCronExpr, 'send-whatsapp-message', {
         userId: phoneNumber,
         message: newMessage,
         jobName: name,
@@ -170,7 +174,7 @@ export async function updateCronJob(
       });
     } else {
       await agenda.every(
-        newCronExpr,
+        effectiveCronExpr,
         'send-whatsapp-message',
         {
           userId: phoneNumber,

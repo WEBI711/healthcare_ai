@@ -4,10 +4,34 @@ import { MongoBackend } from '@agendajs/mongo-backend';
 /**
  * Check if a cron expression represents a one-off schedule.
  *
- * One-off expressions start with 'at ' (ISO date format for Agenda.schedule)
+ * One-off expressions can be:
+ * - Fresh from the AI: starts with 'at ' (e.g., "at 2026-06-18 15:00:00")
+ * - Stored in DB: starts with 'once:' (e.g., "once:2026-06-18 15:00:00")
  */
 export function isOneOffExpression(expression: string): boolean {
-  return expression.startsWith('at ');
+  return expression.startsWith('at ') || expression.startsWith('once:');
+}
+
+/**
+ * Normalize a stored cron expression to the format Agenda expects.
+ *
+ * - DB stores one-off jobs as "once:YYYY-MM-DD HH:mm:ss"
+ * - The AI generates "at YYYY-MM-DD HH:mm:ss"
+ * - Agenda expects just the date/time string (for schedule()) or a raw cron expression (for every())
+ *
+ * Returns the expression ready to pass to agenda.schedule() or isOneOffExpression().
+ */
+export function normalizeCronExpression(expression: string): string {
+  // Strip the DB storage prefix for one-off jobs
+  if (expression.startsWith('once:')) {
+    return expression.replace('once:', '');
+  }
+  // Strip the AI-generated prefix for one-off jobs
+  if (expression.startsWith('at ')) {
+    return expression.replace('at ', '');
+  }
+  // Recurring cron expression — return as-is
+  return expression;
 }
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_assistant';
@@ -71,18 +95,16 @@ export async function restoreAgendaJobs(): Promise<void> {
       // Clear any existing Agenda job with same userId + name
       await cancelJob(job.userId, job.name);
 
-      // Determine if this is a recurring or one-off job
-      const isOneOff = job.cronExpression.startsWith('once:');
-      const actualCronExpr = isOneOff ? job.cronExpression.replace('once:', '') : job.cronExpression;
+      // Use the normalization helper to handle both 'once:' and 'at ' prefixes
+      const effectiveExpr = normalizeCronExpression(job.cronExpression);
+      const isOneOff = isOneOffExpression(job.cronExpression);
 
       if (isOneOff) {
         // One-off job: re-schedule if not already run
-        // Remove 'at ' prefix if still present (for backwards compatibility)
-        const scheduleTime = actualCronExpr.replace(/^at /, '');
-        console.log(`[Agenda] Restoring one-off job "${job.name}" scheduled for: ${scheduleTime}`);
+        console.log(`[Agenda] Restoring one-off job "${job.name}" scheduled for: ${effectiveExpr}`);
 
         if (!job.lastRunAt) {
-          await agenda.schedule(scheduleTime, 'send-whatsapp-message', {
+          await agenda.schedule(effectiveExpr, 'send-whatsapp-message', {
             userId: job.userId,
             message: job.message,
             jobName: job.name,
@@ -95,7 +117,7 @@ export async function restoreAgendaJobs(): Promise<void> {
       } else {
         // Recurring job
         await agenda.every(
-          job.cronExpression,
+          effectiveExpr,
           'send-whatsapp-message',
           {
             userId: job.userId,
