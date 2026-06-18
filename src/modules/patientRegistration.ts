@@ -12,13 +12,9 @@ export async function registerPatient(name: string, number: string, procedure: s
 
     // Send a welcome/introductory WhatsApp message to the newly registered patient
     // Registration succeeds regardless — the welcome message is best-effort
-    if (whatsAppService.isConnected()) {
-        sendWelcomeMessage(name, number, procedure, procedureDate).catch(err =>
-            console.error(`[Registration] Welcome message failed for ${name} (${number}):`, err)
-        );
-    } else {
-        console.log(`[Registration] WhatsApp socket not connected — skipping welcome message for ${name} (${number})`);
-    }
+    sendWelcomeMessage(name, number, procedure, procedureDate).catch(err =>
+        console.error(`[Registration] Welcome message failed for ${name} (${number}):`, err)
+    );
 
     return { patient };
 }
@@ -80,6 +76,10 @@ async function sendWelcomeMessage(
             ``,
             `*Let's get you back on your feet, ${name}!* Just send me a message whenever you need me. 💬`,
         ].join('\n');
+
+        // Wait for WhatsApp connection to be ready (up to 30s)
+        // The socket may be in 'connecting' or 'closed' state during initial auth or reconnection
+        await whatsAppService.waitForConnection(30_000);
 
         await whatsAppService.sendMessage(number, message);
         console.log(`[Registration] Welcome message sent to ${name} (${number})`);

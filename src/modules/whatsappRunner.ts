@@ -46,6 +46,20 @@ export async function startWhatsAppMode(): Promise<void> {
   // Also set the socket immediately so it's available before any message is received
   // (e.g., for welcome messages sent via the registration API)
   whatsAppService.setSocket(sock);
+
+  // Track connection state on the WhatsAppService for isConnected() and waitForConnection()
+  sock.ev.on('connection.update', ({ connection }) => {
+    if (connection === 'open') {
+      whatsAppService.setConnectionState('open');
+      console.log('[WhatsApp] Connection state: open');
+    } else if (connection === 'close') {
+      whatsAppService.setConnectionState('closed');
+      console.log('[WhatsApp] Connection state: closed');
+    }
+  });
+
+  // Mark as connecting until the first 'open' event fires
+  whatsAppService.setConnectionState('connecting');
   console.log('[WhatsApp] Socket registered with WhatsAppService');
 }
 
