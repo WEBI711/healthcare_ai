@@ -3,6 +3,7 @@ import { MongoBackend } from '@agendajs/mongo-backend';
 
 /**
  * Check if a cron expression represents a one-off schedule.
+ *
  * One-off expressions start with 'at ' (ISO date format for Agenda.schedule)
  */
 export function isOneOffExpression(expression: string): boolean {

@@ -21,9 +21,9 @@ export async function startWhatsAppMode(): Promise<void> {
   // Restore jobs from database
   await restoreAgendaJobs();
 
-  await startWhatsApp(async (message: WhatsAppMessage, sock: WASocket) => {
-    // Set the socket for the service (used by cron jobs)
-    whatsAppService.setSocket(sock);
+  const sock = await startWhatsApp(async (message: WhatsAppMessage, receivedSock: WASocket) => {
+    // Set the socket for the service (used by cron jobs and registration welcome messages)
+    whatsAppService.setSocket(receivedSock);
 
     console.log(`📨 Message from ${message.from_alt}: ${message.text}`);
     let is_allowed = await check_if_allowed(message.from_alt);
@@ -42,6 +42,11 @@ export async function startWhatsAppMode(): Promise<void> {
       console.log(`📤 Reply sent to ${message.from}`);
     });
   });
+
+  // Also set the socket immediately so it's available before any message is received
+  // (e.g., for welcome messages sent via the registration API)
+  whatsAppService.setSocket(sock);
+  console.log('[WhatsApp] Socket registered with WhatsAppService');
 }
 
 export { stopAgenda };
