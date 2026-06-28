@@ -1,6 +1,6 @@
 import { PatientModel } from "#models/Patient.js";
 import { check_if_allowed, allow } from "#modules/allowlist_manager.js";
-import { whatsAppService } from "#modules/whatsappService.js";
+import { connectionManager } from "#modules/connectionManager.js";
 
 export async function registerPatient(name: string, number: string, procedure: string, procedureDate: Date, history: string, notes: string) {
     let randomString = Math.random().toString(36).slice(2, 10);
@@ -78,10 +78,10 @@ async function sendWelcomeMessage(
         ].join('\n');
 
         // Wait for WhatsApp connection to be ready (up to 30s)
-        // The socket may be in 'connecting' or 'closed' state during initial auth or reconnection
-        await whatsAppService.waitForConnection(30_000);
+        // The socket may be in 'connecting' or 'disconnected' state during initial auth or reconnection
+        await connectionManager.waitUntilConnected(30_000);
 
-        await whatsAppService.sendMessage(number, message);
+        await connectionManager.sendMessage(number, message);
         console.log(`[Registration] Welcome message sent to ${name} (${number})`);
     } catch (err) {
         console.error(`[Registration] Failed to send welcome message to ${name} (${number}):`, err);

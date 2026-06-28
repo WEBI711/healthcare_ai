@@ -1,7 +1,6 @@
-import { startWhatsApp, sendTextMessage, sendTypingIndicator, stopTypingIndicator, WhatsAppMessage, WASocket } from '#modules/whatsapp.js';
+import { connectionManager, WhatsAppMessage, WASocket } from '#modules/connectionManager.js';
 import { handleUserMessage } from '#src/conversation.js';
-import { check_if_allowed } from '#modules/allowlist_manager.js'
-import { whatsAppService } from '#modules/whatsappService.js';
+import { check_if_allowed } from '#modules/allowlist_manager.js';
 import { getAgenda, restoreAgendaJobs, stopAgenda } from '#modules/agenda.js';
 import { defineAgendaJobs } from '#modules/agendaJobDefinitions.js';
 
@@ -21,46 +20,35 @@ export async function startWhatsAppMode(): Promise<void> {
   // Restore jobs from database
   await restoreAgendaJobs();
 
-  const sock = await startWhatsApp(async (message: WhatsAppMessage, receivedSock: WASocket) => {
-    // Set the socket for the service (used by cron jobs and registration welcome messages)
-    whatsAppService.setSocket(receivedSock);
-
+  // Start WhatsApp via ConnectionManager — this runs asynchronously and
+  // handles all reconnection internally.
+  await connectionManager.start(async (message: WhatsAppMessage, _sock: WASocket) => {
     console.log(`📨 Message from ${message.from_alt}: ${message.text}`);
-    let is_allowed = await check_if_allowed(message.from_alt);
-    if (!is_allowed) {
-      console.log(`number ${message.from_alt} not in allowlist. Will not reply to message.`)
-      return
+
+    const isAllowed = await check_if_allowed(message.from_alt);
+    if (!isAllowed) {
+      console.log(`Number ${message.from_alt} not in allowlist. Will not reply.`);
+      return;
     }
 
-    // Show typing indicator
-    await sendTypingIndicator(sock, message.from);
+    // Show typing indicator (best-effort)
+    connectionManager.sendTypingIndicator(message.from).catch(() => {});
 
     await handleUserMessage(message.from_alt, message.text, async (response) => {
-      // Stop typing and send response
-      await stopTypingIndicator(sock, message.from);
-      await sendTextMessage(sock, message.from, response);
-      console.log(`📤 Reply sent to ${message.from}`);
+      // Stop typing indicator
+      connectionManager.stopTypingIndicator(message.from).catch(() => {});
+
+      // Send the response (auto-queues if disconnected)
+      const result = await connectionManager.sendMessage(message.from, response);
+      if (result.sent) {
+        console.log(`📤 Reply sent to ${message.from}`);
+      } else if (result.queued) {
+        console.log(`📤 Reply queued for ${message.from} (will send on reconnect)`);
+      }
     });
   });
 
-  // Also set the socket immediately so it's available before any message is received
-  // (e.g., for welcome messages sent via the registration API)
-  whatsAppService.setSocket(sock);
-
-  // Track connection state on the WhatsAppService for isConnected() and waitForConnection()
-  sock.ev.on('connection.update', ({ connection }) => {
-    if (connection === 'open') {
-      whatsAppService.setConnectionState('open');
-      console.log('[WhatsApp] Connection state: open');
-    } else if (connection === 'close') {
-      whatsAppService.setConnectionState('closed');
-      console.log('[WhatsApp] Connection state: closed');
-    }
-  });
-
-  // Mark as connecting until the first 'open' event fires
-  whatsAppService.setConnectionState('connecting');
-  console.log('[WhatsApp] Socket registered with WhatsAppService');
+  console.log('[WhatsApp] ConnectionManager started');
 }
 
 export { stopAgenda };

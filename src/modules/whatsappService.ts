@@ -1,65 +1,72 @@
-import { WASocket, sendTextMessage as waSendTextMessage } from '#modules/whatsapp.js';
-
-type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
+/**
+ * @deprecated Use connectionManager from #modules/connectionManager.js instead.
+ *
+ * This class is kept as a backward-compatibility layer. All methods now delegate
+ * to the ConnectionManager singleton. Migrate direct callers to connectionManager
+ * when convenient.
+ */
+import { connectionManager } from '#modules/connectionManager.js';
 
 class WhatsAppService {
-  private socket: WASocket | null = null;
-  private _connectionState: ConnectionState = 'closed';
-
-  setSocket(socket: WASocket) {
-    this.socket = socket;
-  }
-
-  getSocket(): WASocket | null {
-    return this.socket;
-  }
-
   /**
-   * Update the tracked connection state.
-   * Called by the connection.update handler in whatsappRunner.
+   * @deprecated ConnectionManager owns its own socket. No-op.
    */
-  setConnectionState(state: ConnectionState) {
-    this._connectionState = state;
+  setSocket(_socket: any) {
+    // no-op — ConnectionManager owns the socket lifecycle
   }
 
   /**
-   * Returns true only if the socket exists AND the underlying WebSocket is open.
+   * @deprecated Use connectionManager.getSocket() directly.
+   */
+  getSocket() {
+    return connectionManager.getSocket();
+  }
+
+  /**
+   * @deprecated ConnectionManager manages its own state. No-op.
+   */
+  setConnectionState(_state: any) {
+    // no-op — ConnectionManager manages its own state
+  }
+
+  /**
+   * @deprecated Use connectionManager.isConnected() directly.
    */
   isConnected(): boolean {
-    return this.socket !== null && this._connectionState === 'open';
+    return connectionManager.isConnected();
   }
 
   /**
-   * Get the raw internal connection state.
+   * @deprecated Use connectionManager.getState() directly.
    */
-  getConnectionState(): ConnectionState {
-    return this._connectionState;
+  getConnectionState() {
+    const state = connectionManager.getState();
+    // Map internal states to legacy API surface
+    const map: Record<string, string> = {
+      disconnected: 'closed',
+      connecting: 'connecting',
+      connected: 'open',
+    };
+    return map[state] || state;
   }
 
   /**
-   * Wait until the WhatsApp connection is open, with a timeout.
-   * Polls every 500ms. Throws if timeout is reached.
+   * @deprecated Use connectionManager.waitUntilConnected() directly.
    */
   async waitForConnection(timeoutMs: number = 15000): Promise<void> {
-    if (this.isConnected()) return;
-
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      if (this.isConnected()) return;
-    }
-
-    throw new Error(`WhatsApp connection not ready after ${timeoutMs}ms (state: ${this._connectionState})`);
+    return connectionManager.waitUntilConnected(timeoutMs);
   }
 
+  /**
+   * @deprecated Use connectionManager.sendMessage() directly.
+   */
   async sendMessage(phoneNumber: string, text: string): Promise<void> {
-    if (!this.socket) {
-      throw new Error('WhatsApp socket not initialized');
+    const result = await connectionManager.sendMessage(phoneNumber, text);
+    if (!result.sent && !result.queued) {
+      throw new Error('Failed to send message — not connected and queue failed');
     }
-    if (this._connectionState !== 'open') {
-      throw new Error(`Cannot send message — connection state is "${this._connectionState}" (not "open")`);
-    }
-    await waSendTextMessage(this.socket, phoneNumber, text);
+    // Legacy API throws on connection issues, but ConnectionManager queues instead.
+    // We keep the old contract by not throwing when queued.
   }
 }
 

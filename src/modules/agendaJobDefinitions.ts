@@ -1,5 +1,5 @@
 import { getAgenda } from '#modules/agenda.js';
-import { whatsAppService } from '#modules/whatsappService.js';
+import { connectionManager } from '#modules/connectionManager.js';
 import { CronJobModel, JobAuditLogModel } from '#database/index.js';
 import type { Job } from 'agenda';
 
@@ -27,10 +27,11 @@ async function rescheduleWithBackoff(job: Job<any>, retryCount: number, errorMes
  */
 async function notifyUserOfFailure(phoneNumber: string, jobName: string, maxRetries: number): Promise<void> {
   try {
-    await whatsAppService.sendMessage(
-      phoneNumber,
-      `⚠️ I couldn't send your "${jobName}" reminder after ${maxRetries} attempts. Please check your connection.`
-    );
+      // Fallback: send via ConnectionManager (queues if disconnected)
+      await connectionManager.sendMessage(
+        phoneNumber,
+        `⚠️ I couldn't send your "${jobName}" reminder after ${maxRetries} attempts. Please check your connection.`
+      );
   } catch (notifyError: any) {
     console.error(`[Agenda] Failed to notify user ${phoneNumber} about missed job "${jobName}":`, notifyError.message);
   }
@@ -52,8 +53,19 @@ async function sendWhatsAppMessageHandler(job: Job<any>): Promise<void> {
   console.log(`[Agenda] Executing "${jobName}" for user ${phoneNumber} (retry: ${retryCount})`);
 
   try {
-    // Send the WhatsApp message
-    await whatsAppService.sendMessage(phoneNumber, message);
+    // Send the WhatsApp message (auto-queues if disconnected)
+    const result = await connectionManager.sendMessage(phoneNumber, message);
+
+    if (!result.sent && !result.queued) {
+      throw new Error('Failed to send message — not connected and queue rejected');
+    }
+
+    // If queued (not sent immediately), treat as success for audit purposes —
+    // ConnectionManager will flush on reconnect. We still log it as success
+    // because delivery is guaranteed once the connection is back.
+    if (result.queued) {
+      console.log(`[Agenda] Job "${jobName}" queued for user ${phoneNumber} (will send on reconnect)`);
+    }
 
     // Log successful execution
     await JobAuditLogModel.create({
