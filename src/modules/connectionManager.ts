@@ -168,7 +168,7 @@ class ConnectionManager {
    * Returns true if the socket is currently connected and usable.
    */
   isConnected(): boolean {
-    return this.state === 'connected' && this.socket !== null && isWsOpen(this.socket);
+    return this.state === 'connected' && this.socket !== null;
   }
 
   /**
