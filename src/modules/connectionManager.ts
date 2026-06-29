@@ -61,15 +61,6 @@ function askQuestion(query: string): Promise<string> {
   });
 }
 
-/** Check if the socket's underlying WebSocket is in a usable state. */
-function isWsOpen(sock: WASocket): boolean {
-  try {
-    const ws = (sock as any).ws;
-    return ws && ws.readyState === 1; // 1 = OPEN
-  } catch {
-    return false;
-  }
-}
 
 /** Compute exponential backoff delay with jitter. */
 function backoffDelay(attempt: number): number {
@@ -118,7 +109,7 @@ class ConnectionManager {
    * - Returns a result indicating whether it was sent or queued.
    */
   async sendMessage(to: string, text: string): Promise<SendResult> {
-    if (this.state === 'connected' && this.socket && isWsOpen(this.socket)) {
+    if (this.state === 'connected' && this.socket) {
       try {
         const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
         await this.socket.sendMessage(jid, { text });
@@ -142,7 +133,7 @@ class ConnectionManager {
    * Send a typing indicator. Best-effort — silently skipped if not connected.
    */
   async sendTypingIndicator(to: string): Promise<void> {
-    if (this.state !== 'connected' || !this.socket || !isWsOpen(this.socket)) return;
+    if (this.state !== 'connected' || !this.socket) return;
     try {
       const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
       await this.socket.sendPresenceUpdate('composing', jid);
@@ -155,7 +146,7 @@ class ConnectionManager {
    * Stop typing indicator. Best-effort — silently skipped if not connected.
    */
   async stopTypingIndicator(to: string): Promise<void> {
-    if (this.state !== 'connected' || !this.socket || !isWsOpen(this.socket)) return;
+    if (this.state !== 'connected' || !this.socket) return;
     try {
       const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
       await this.socket.sendPresenceUpdate('paused', jid);
@@ -467,15 +458,12 @@ class ConnectionManager {
         console.warn(`[ConnectionManager] Failed to flush message to ${msg.to}:`, err.message);
         failed.push(msg);
 
-        // If the socket died during flush, stop and re-queue the rest
-        if (!isWsOpen(this.socket!)) {
-          this.setState('disconnected');
-          // Re-queue remaining messages (including failed + unprocessed)
-          const remaining = failed.concat(deduped.slice(deduped.indexOf(msg) + 1));
-          this.pendingMessages = [...remaining, ...this.pendingMessages];
-          this.scheduleReconnect();
-          return;
-        }
+        // Socket died during flush — re-queue remaining and reconnect
+        this.setState('disconnected');
+        const remaining = failed.concat(deduped.slice(deduped.indexOf(msg) + 1));
+        this.pendingMessages = [...remaining, ...this.pendingMessages];
+        this.scheduleReconnect();
+        return;
       }
     }
 
