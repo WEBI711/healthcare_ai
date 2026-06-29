@@ -36,11 +36,12 @@ async function main(): Promise<void> {
     process.exit(0);
   });
 
-  if (USE_WHATSAPP) {
-    await startWhatsAppMode();
-  } else {
-    await startCLI();
-  }
+  await startWhatsAppMode();
+  //if (USE_WHATSAPP) {
+  //  await startWhatsAppMode();
+  //} else {
+  //  await startCLI();
+  //}
 }
 
 main().catch(console.error);
