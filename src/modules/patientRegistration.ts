@@ -23,7 +23,7 @@ export async function registerPatient(name: string, number: string, procedure: s
     console.error(`[Registration] Welcome message failed for ${name} (${number}):`, err)
   );
 
-  return { patient };
+  return { patient, isNew: true };
 }
 
 function formatDate(date: string | Date): string {
