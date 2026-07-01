@@ -12,10 +12,14 @@ type Body = { name: string, number: string; procedure: string, procedureDate: Da
 router.post('/', async (req: Request<{}, {}, Body>, res) => {
     try {
         const { name, number, procedure, procedureDate, history, notes } = req.body;
-        let { patient } = await registerPatient(name, number, procedure, procedureDate, history, notes);
+        let { patient, isNew } = await registerPatient(name, number, procedure, procedureDate, history, notes);
         if (patient) {
-            console.log("Patient registered successfully:", patient.name);
-            res.status(201).json({ message: "Patient registered successfully", name: patient.name })
+            console.log(`Patient ${isNew ? 'registered' : 'already exists'}:`, patient.name);
+            res.status(201).json({
+              message: isNew ? "Patient registered successfully" : "Patient already exists",
+              name: patient.name,
+              isNew
+            })
             return
         }
     } catch (err) {

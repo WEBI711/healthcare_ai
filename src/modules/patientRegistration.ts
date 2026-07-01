@@ -3,6 +3,13 @@ import { check_if_allowed, allow } from "#modules/allowlist_manager.js";
 import { connectionManager } from "#modules/connectionManager.js";
 
 export async function registerPatient(name: string, number: string, procedure: string, procedureDate: Date, history: string, notes: string) {
+  // Check for existing patient with same name + number to avoid duplicates
+  const existing = await PatientModel.findOne({ name, number });
+  if (existing) {
+    console.log(`[Registration] Patient ${name} (${number}) already exists, skipping duplicate`);
+    return { patient: existing, isNew: false };
+  }
+
   let randomString = Math.random().toString(36).slice(2, 10);
   let userId = `${name}:${number}:${randomString}`;
   let patient = await PatientModel.create({ userId, name, number, procedure, procedureDate, history, notes })
@@ -83,8 +90,14 @@ async function sendWelcomeMessage(
     // The socket may be in 'connecting' or 'disconnected' state during initial auth or reconnection
     await connectionManager.waitUntilConnected(30_000);
 
-    await connectionManager.sendMessage(number, message);
-    console.log(`[Registration] Welcome message sent to ${name} (${number})`);
+    const result = await connectionManager.sendMessage(number, message);
+    if (result.sent) {
+      console.log(`[Registration] Welcome message sent to ${name} (${number})`);
+    } else if (result.queued) {
+      console.log(`[Registration] Welcome message queued for ${name} (${number}) — will deliver when WhatsApp reconnects`);
+    } else {
+      console.warn(`[Registration] Welcome message failed to send or queue for ${name} (${number})`);
+    }
   } catch (err) {
     console.error(`[Registration] Failed to send welcome message to ${name} (${number}):`, err);
     // Don't throw — registration should still succeed even if the message fails

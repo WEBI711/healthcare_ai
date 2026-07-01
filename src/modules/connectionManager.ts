@@ -48,6 +48,7 @@ const MAX_QUEUE_SIZE = 500;
 const INITIAL_RECONNECT_DELAY_MS = 5_000;
 const MAX_RECONNECT_DELAY_MS = 300_000; // 5 minutes
 const RECONNECT_JITTER_MS = 5_000;
+const SEND_TIMEOUT_MS = 10_000; // per-message send timeout
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -112,11 +113,17 @@ class ConnectionManager {
     if (this.state === 'connected' && this.socket) {
       try {
         const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-        await this.socket.sendMessage(jid, { text });
+        await Promise.race([
+          this.socket.sendMessage(jid, { text }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Send timeout')), SEND_TIMEOUT_MS)),
+        ]);
         return { sent: true, queued: false };
       } catch (err: any) {
-        // Socket died mid-send — mark disconnected, queue, and reconnect
-        console.warn('[ConnectionManager] Send failed (socket closed mid-send):', err.message);
+        // Socket hung or died mid-send — clean up old socket, queue, and reconnect
+        console.warn('[ConnectionManager] Send failed:', err.message);
+        const oldSocket = this.socket;
+        this.socket = null;
+        try { oldSocket?.end(undefined); } catch { /* ignore */ }
         this.setState('disconnected');
         this.queueMessage(to, text);
         this.scheduleReconnect();
@@ -452,13 +459,19 @@ class ConnectionManager {
     for (const msg of deduped) {
       try {
         const jid = msg.to.includes('@') ? msg.to : `${msg.to}@s.whatsapp.net`;
-        await this.socket!.sendMessage(jid, { text: msg.text });
+        await Promise.race([
+          this.socket!.sendMessage(jid, { text: msg.text }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Flush timeout')), SEND_TIMEOUT_MS)),
+        ]);
         console.log(`[ConnectionManager] Flushed queued message to ${msg.to}`);
       } catch (err: any) {
         console.warn(`[ConnectionManager] Failed to flush message to ${msg.to}:`, err.message);
         failed.push(msg);
 
-        // Socket died during flush — re-queue remaining and reconnect
+        // Socket hung or died during flush — clean up, re-queue remaining, reconnect
+        const oldSocket = this.socket;
+        this.socket = null;
+        try { oldSocket?.end(undefined); } catch { /* ignore */ }
         this.setState('disconnected');
         const remaining = failed.concat(deduped.slice(deduped.indexOf(msg) + 1));
         this.pendingMessages = [...remaining, ...this.pendingMessages];
